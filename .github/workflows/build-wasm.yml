@@ -1,0 +1,58 @@
+# Tests the Rust engine, compiles it to WebAssembly, checks it in Node, and commits the built
+# js/holdem-wasm.js back to the branch, so the game runs from a plain checkout with no Rust installed.
+name: Build engine (Rust → WebAssembly)
+
+on:
+  push:
+    paths:
+      - 'engine/**'
+      - 'tools/**'
+      - 'tests/**'
+      - 'js/wasm-game.js'
+      - '.github/workflows/build-wasm.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-wasm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + wasm target
+        run: |
+          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+          rustup default stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Rust tests (rules, evaluator, bots, JSON API)
+        run: cargo test --release --manifest-path engine/Cargo.toml -- --nocapture
+
+      - name: Build WebAssembly and embed it
+        run: bash tools/build-wasm.sh
+
+      - name: Smoke-test the wasm build in Node
+        run: node tests/wasm-smoke.js
+
+      - name: Commit the built engine
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/holdem-wasm.js
+          if git diff --cached --quiet; then
+            echo "Engine build unchanged."
+          else
+            git commit -m "Build WebAssembly engine from ${GITHUB_SHA::7}"
+            git push
+          fi

@@ -1,4 +1,4 @@
-/* Cards, deck and RNG helpers.
+/* Card display helpers for the UI (the engine itself is Rust; see engine/src/cards.rs).
  * A card is an int 0..51: rank = c % 13 (0 = deuce .. 12 = ace), suit = floor(c / 13).
  * Works as a plain <script> in the browser and via require() in Node.
  */
