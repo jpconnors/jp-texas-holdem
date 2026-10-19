@@ -1,6 +1,6 @@
 # JP's Texas Hold'em
 
-No-limit Texas Hold'em in the browser: you against 1–5 virtual opponents at Easy, Medium, Hard, or a mixed table. Plain HTML/CSS/JavaScript with no dependencies, no build step, and nothing to install beyond what's usually already on the machine.
+No-limit Texas Hold'em in the browser: you against 1–5 virtual opponents at Easy, Medium, Hard, or a mixed table. The game rules and the bots are written in **Rust** and compiled to **WebAssembly**. The table is plain HTML/CSS/JavaScript. You don't need Rust to play, because the compiled engine is committed to the repo (`js/holdem-wasm.js`).
 
 ## Run it
 
@@ -19,7 +19,7 @@ python3 server.py
 
 **Windows:** double-click `Start (Windows).bat`. Or in a terminal: `py server.py` (or `node server.js`).
 
-Either launcher starts a local server at `http://127.0.0.1:8765/` (next free port if that one is taken) and opens your browser. Close the terminal window to stop it. If neither Python 3 nor Node is installed, the launcher opens `index.html` directly. The game works that way too, since it uses no modules or network calls.
+Either launcher starts a local server at `http://127.0.0.1:8765/` (next free port if that one is taken) and opens your browser. Close the terminal window to stop it. If neither Python 3 nor Node is installed, the launcher opens `index.html` directly. The game works that way too, because the WebAssembly is embedded in a script file rather than downloaded.
 
 ## How to play
 
@@ -34,14 +34,14 @@ Keyboard: `F` fold · `C` check or call · `K` check · `B` or `Enter` bet/raise
 | Level | How it plays |
 |---|---|
 | **Easy** | Loose and passive. Plays most hands, calls too much, rarely raises, judges its hand with a lot of noise. |
-| **Medium** | Runs a Monte Carlo simulation of its equity (~450 run-outs) against the players still in, compares it to the pot odds, value-bets good hands, and bluffs occasionally. |
-| **Hard** | Simulates ~1,100 run-outs against a modeled range for each opponent, built from their VPIP/PFR history and how they've acted this hand. It uses positional opening ranges, 3-bets (wider against loose raisers), push/fold play when short-stacked, continuation bets, semi-bluffs, check-raise traps, and implied odds. It tracks your tendencies and adjusts: more bluffs if you fold to bets often, thinner value bets and overbets if you call too much. |
+| **Medium** | Runs a Monte Carlo simulation of its equity (1,500 run-outs) against the players still in, compares it to the pot odds, value-bets good hands, and bluffs occasionally. |
+| **Hard** | Simulates 12,000 run-outs against a modeled range for each opponent, built from their VPIP/PFR history and how they've acted this hand. It uses positional opening ranges, 3-bets (wider against loose raisers), push/fold play when short-stacked, continuation bets, semi-bluffs, check-raise traps, and implied odds. It tracks your tendencies and adjusts: more bluffs if you fold to bets often, thinner value bets and overbets if you call too much. |
 
-Bots see only what a real player would: their own cards, the board, bets, stacks, and public stats. No peeking.
+Bots see only what a real player would: their own cards, the board, bets, stacks, and public stats. No peeking. The page itself never receives opponents' cards until they're shown down.
 
 Each bot also gets a small random personality (looser or tighter, more or less aggressive), so two bots at the same level don't play identically.
 
-In 30 heads-up freezeouts per matchup during testing: Hard beat Easy 24–6, Hard beat Medium 24–6, and Medium beat Easy 21–9.
+In 40 heads-up freezeouts per matchup (the `difficulty_ladder` test): Hard beat Medium 30–10, Hard beat Easy 27–13, and Medium beat Easy 28–12.
 
 ## Rules implemented
 
@@ -54,20 +54,40 @@ In 30 heads-up freezeouts per matchup during testing: Hard beat Easy 24–6, Har
 ## Project layout
 
 ```
-index.html              table markup and dialogs
-css/style.css           look and layout
-js/cards.js             cards, deck, shuffling (crypto-strength RNG)
-js/evaluator.js         7-card hand evaluator and hand names
-js/engine.js            betting rounds, pots, showdown (no DOM; reusable)
-js/ai.js                bot logic and Monte Carlo equity
-js/ui.js                rendering, game loop, controls
-server.py / server.js   tiny local servers (stdlib / no npm)
-tests/run-tests.js      engine + AI tests:  node tests/run-tests.js
+index.html                 table markup and dialogs
+css/style.css              look and layout
+js/ui.js                   rendering, game loop, controls
+js/wasm-game.js            loads the WebAssembly engine; exposes it as Poker.Game
+js/holdem-wasm.js          the compiled engine (GENERATED, embedded as base64)
+js/cards.js                card display helpers
+engine/                    Rust crate `holdem-core`
+  src/game.rs              betting rounds, min-raise rules, side pots, showdown
+  src/eval.rs              7-card hand evaluator and hand names
+  src/ai.rs                bot logic and Monte Carlo equity
+  src/api.rs               JSON commands the page sends (new, start, act, bot, ...)
+  src/lib.rs               the three wasm exports
+  tests/                   rules, evaluator, bot tournaments, JSON API
+tools/build-wasm.sh        compile to wasm + embed
+.github/workflows/         CI: test, build, smoke-test, commit js/holdem-wasm.js
+server.py / server.js      tiny local servers (stdlib / no npm)
+```
+
+## Rebuilding the engine
+
+You only need this if you change the Rust code. Pushing to GitHub does it for you: the **Build engine** workflow runs the tests, compiles to WebAssembly, checks the build in Node, and commits the new `js/holdem-wasm.js` to your branch. After it finishes, pull.
+
+To build locally, install Rust from rustup.rs and Node.js, then:
+
+```
+rustup target add wasm32-unknown-unknown
+cargo test --release --manifest-path engine/Cargo.toml     # rules + bot tests
+bash tools/build-wasm.sh                                    # writes js/holdem-wasm.js
+node tests/wasm-smoke.js                                    # plays games through the wasm build
 ```
 
 ## Extending it
 
-- **Tune a difficulty:** thresholds live in `preflop()` and `postflop()` in `js/ai.js`.
-- **Add a level:** add a name to `DIFFICULTIES`, branch on it in `ai.js`, and add an `<option>` in `index.html`.
+- **Tune a difficulty:** thresholds live in `preflop()` and `postflop()` in `engine/src/ai.rs`; simulation counts are in `Difficulty::sims()`.
+- **Add a level:** add a variant to `Difficulty` in `ai.rs`, handle it in `preflop()`/`postflop()`, and add an `<option>` in `index.html`.
 - **Debug bot decisions:** in the browser console run `JP_DEBUG = true`. Each bot action then logs with its reason and equity.
-- The engine is independent of the UI (`new Poker.Game({...})`, `startHand()`, `act({type, amount})`, `viewFor(seat)`), so it can drive a multiplayer server later.
+- **Use the engine elsewhere:** `holdem-core` has no browser dependencies. The same crate could back a native app or a multiplayer server.

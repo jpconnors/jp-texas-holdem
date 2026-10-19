@@ -1,4 +1,5 @@
-/* Table UI + game loop: renders state, runs bots, handles your input. */
+/* Table UI + game loop: renders state, runs bots, handles your input.
+ * The rules engine and the bots run in Rust/WebAssembly (see js/wasm-game.js and engine/). */
 (function () {
   'use strict';
   const P = window.Poker;
@@ -62,8 +63,12 @@
       autoDeal: f.autoDeal.checked,
     };
     save('jpholdem.settings', s);
-    $('#setup').hidden = true;
-    startGame(s);
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    P.ready
+      .then(() => { $('#setup').hidden = true; startGame(s); })
+      .catch((err) => { $('#record').textContent = 'Could not load the game engine: ' + err.message; })
+      .finally(() => { btn.disabled = false; });
   });
 
   function startGame(s) {
@@ -74,7 +79,7 @@
     const players = [{ name: s.name, isHuman: true, chips: s.chips }];
     for (let i = 0; i < s.opponents; i++) {
       const d = s.difficulty === 'mixed' ? (i < 3 ? ['easy', 'medium', 'hard'][i] : mixed[i]) : s.difficulty;
-      players.push({ name: names[i], isHuman: false, difficulty: d, persona: P.AI.makePersona(d), chips: s.chips });
+      players.push({ name: names[i], isHuman: false, difficulty: d, chips: s.chips });
     }
     if (s.difficulty === 'mixed') {
       // Shuffle bot seats so the hard bot isn't always on your left.
@@ -166,7 +171,8 @@
       const revealed = p.isHuman || (showdown && result.hands.some((h) => h.seat === p.seat));
       slots.forEach((slot, k) => {
         let key = '';
-        if (p.inHand && p.hole[k] != null && !(p.folded && !p.isHuman)) key = revealed ? 'c' + p.hole[k] : 'back';
+        // The engine only sends opponents' cards once they're shown down.
+        if (p.inHand && k < p.cardCount && !(p.folded && !p.isHuman)) key = revealed && p.hole[k] != null ? 'c' + p.hole[k] : 'back';
         if (p.isHuman && p.folded && p.hole[k] != null) key = 'c' + p.hole[k] + 'f';
         const card = setSlot(slot, key, () => (key === 'back' ? cardEl(null) : cardEl(p.hole[k])));
         if (card) {
@@ -233,7 +239,7 @@
     // Hand label
     let label = '';
     if (me && me.inHand && me.hole.length === 2) {
-      if (game.board.length >= 3) label = 'You have: ' + P.describe(P.evaluate(me.hole.concat(game.board)));
+      if (game.board.length >= 3) label = 'You have: ' + game.humanHandName;
       else {
         const [a, b] = me.hole;
         const ra = P.RANKS[P.rankOf(a)], rb = P.RANKS[P.rankOf(b)];
@@ -277,15 +283,13 @@
     const delay = SPEED_MS[settings.speed] * (0.7 + Math.random() * 0.6);
     botTimer = setTimeout(() => {
       botTimer = null;
-      let decision;
       try {
-        decision = P.AI.decide(game.viewFor(p.seat), p.difficulty, p.persona);
+        const decision = game.botAct();
+        if (window.JP_DEBUG) console.log(p.name, decision);
       } catch (err) {
         console.error(err);
-        decision = { type: game.legalActions().canCheck ? 'check' : 'fold' };
+        game.act({ type: game.legalActions().canCheck ? 'check' : 'fold' });
       }
-      if (window.JP_DEBUG) console.log(p.name, decision);
-      game.act(decision);
       step();
     }, delay);
   }
