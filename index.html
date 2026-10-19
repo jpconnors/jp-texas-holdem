@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JP's Texas Hold'em</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <main class="table" id="table">
+      <div class="topbar">
+        <div class="topleft">
+          <div class="pot" id="pot">Pot: 0</div>
+          <div class="blinds" id="blinds"></div>
+          <div class="menu">
+            <button class="link" id="btnHistory" title="Hand history (H)">History</button>
+            <button class="link" id="btnNewGame">New game</button>
+          </div>
+        </div>
+        <button class="ready" id="btnReady" title="Deal the next hand (Space)">I'm Ready</button>
+      </div>
+
+      <h1 class="title">JP's Texas Hold'em</h1>
+
+      <div class="board" id="board">
+        <div class="slots horizontal">
+          <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+        </div>
+      </div>
+
+      <div class="banner" id="banner" hidden></div>
+
+      <div id="seats"></div>
+
+      <aside class="history" id="history" hidden>
+        <div class="history-head">
+          <strong>Hand history</strong>
+          <button class="link" id="btnCloseHistory" aria-label="Close history">Close</button>
+        </div>
+        <ol id="log"></ol>
+      </aside>
+    </main>
+
+    <footer class="controls" id="controls">
+      <div class="hand-label" id="handLabel"></div>
+      <div class="bar">
+        <button class="gloss" id="btnFold" title="Fold (F)">Fold</button>
+        <button class="gloss" id="btnCheck" title="Check (K)">Check</button>
+        <button class="gloss" id="btnCall" title="Call (C)">Call</button>
+        <button class="gloss" id="btnBet" title="Bet / Raise to the amount in the box (B or Enter)">Bet</button>
+        <div class="sizing">
+          <div class="amount-row">
+            <input id="amount" type="number" inputmode="numeric" min="0" step="1" aria-label="Bet or raise to amount">
+            <span class="money" id="money">Money: 0</span>
+          </div>
+          <div class="presets">
+            <button class="gloss small" data-preset="allin" title="Move all in">All in</button>
+            <button class="gloss small" data-preset="0.5" title="Half-pot raise">.5x</button>
+            <button class="gloss small" data-preset="1" title="Pot-size raise">1x</button>
+            <button class="gloss small" data-preset="2" title="Two-times-pot raise">2x</button>
+            <button class="gloss small" data-preset="min" title="Minimum legal raise">MIN</button>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Setup -->
+  <div class="modal" id="setup" hidden>
+    <form class="panel" id="setupForm">
+      <h2>JP's Texas Hold'em</h2>
+      <p class="sub">No-limit hold'em against virtual opponents.</p>
+      <label>Your name <input name="name" maxlength="16" value="JP"></label>
+      <label>Opponents
+        <select name="opponents">
+          <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+        </select>
+      </label>
+      <label>Difficulty
+        <select name="difficulty">
+          <option value="easy">Easy: loose, calls too much</option>
+          <option value="medium" selected>Medium: plays the odds</option>
+          <option value="hard">Hard: reads ranges, bluffs, adapts to you</option>
+          <option value="mixed">Mixed table</option>
+        </select>
+      </label>
+      <label>Starting chips
+        <select name="chips">
+          <option value="1000">1,000</option><option value="2000" selected>2,000</option><option value="5000">5,000</option>
+        </select>
+      </label>
+      <label>Blinds
+        <select name="bb">
+          <option value="10">5 / 10</option><option value="20" selected>10 / 20</option><option value="50">25 / 50</option>
+        </select>
+      </label>
+      <label>Blinds go up
+        <select name="blindUp">
+          <option value="0">Never (cash game)</option><option value="10" selected>Every 10 hands</option><option value="20">Every 20 hands</option>
+        </select>
+      </label>
+      <label>Bot speed
+        <select name="speed">
+          <option value="slow">Slow</option><option value="normal" selected>Normal</option><option value="fast">Fast</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" name="autoDeal"> Auto-deal the next hand</label>
+      <div class="record" id="record"></div>
+      <button class="gloss wide" type="submit">Deal me in</button>
+    </form>
+  </div>
+
+  <!-- Game over -->
+  <div class="modal" id="gameOver" hidden>
+    <div class="panel">
+      <h2 id="goTitle"></h2>
+      <p id="goText"></p>
+      <ol id="goStandings" class="standings"></ol>
+      <div class="row">
+        <button class="gloss" id="btnAgain">Play again</button>
+        <button class="gloss" id="btnSettings">Change settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/cards.js"></script>
+  <script src="js/evaluator.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
