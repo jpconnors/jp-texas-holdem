@@ -7,13 +7,13 @@ No-limit Texas Hold'em in the browser: you against 1–5 virtual opponents at Ea
 **Mac:** the simplest option is to double-click `index.html`, since the game runs fully in the browser. To use the launcher instead, double-click `Start (Mac).command`. macOS will say it "can't verify" the file because it came from the internet. Dismiss that warning, go to **System Settings → Privacy & Security**, and click **Open Anyway** next to the message. Or clear the quarantine flag once in Terminal:
 
 ```
-xattr -dr com.apple.quarantine path/to/jp-holdem
+xattr -dr com.apple.quarantine path/to/jp-texas-holdem
 ```
 
 You can also skip the launcher and run the server from Terminal:
 
 ```
-cd path/to/jp-holdem
+cd path/to/jp-texas-holdem
 python3 server.py
 ```
 
